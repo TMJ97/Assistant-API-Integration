@@ -3,10 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OpenAI Test Form</title>
+    <title>Chat with OpenAI Assistant</title>
+  </head>
+  <body>
+    <h1>Chat with OpenAI Assistant</h1>
+    <div
+      id="chatHistory"
+      style="
+        height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        padding: 10px;
+      "
+    >
+      <!-- Chat messages will appear here -->
+    </div>
+    <input
+      type="text"
+      id="prompt"
+      style="width: 80%; margin-top: 10px"
+      onkeypress="if(event.keyCode==13) {sendPrompt(event);}"
+    />
+    <button onclick="sendPrompt(event)" style="width: 18%; margin-top: 10px">
+      Send
+    </button>
+
     <script>
       function sendPrompt(event) {
-        event.preventDefault(); // Prevent default form submission behavior
+        event.preventDefault();
         const promptInput = document.getElementById("prompt");
         fetch("http://127.0.0.1:5000/generate", {
           method: "POST",
@@ -18,7 +42,11 @@
           .then((response) => response.json())
           .then((data) => {
             if (data.message) {
-              alert("Response: " + data.message);
+              const chatHistory = document.getElementById("chatHistory");
+              // Append user input and AI response to the chat history
+              chatHistory.innerHTML += `<p><strong>User:</strong> ${promptInput.value}</p><p><strong>AI:</strong> ${data.message}</p>`;
+              promptInput.value = ""; // Clear input after sending
+              chatHistory.scrollTop = chatHistory.scrollHeight; // Scroll to the bottom
             } else {
               alert("Response error: " + data.error);
             }
@@ -26,13 +54,5 @@
           .catch((error) => console.error("Error:", error));
       }
     </script>
-  </head>
-  <body>
-    <h1>OpenAI Integration Test</h1>
-    <form onsubmit="sendPrompt(event)">
-      <label for="prompt">Enter your prompt:</label>
-      <input type="text" id="prompt" name="prompt" required />
-      <button type="submit">Send</button>
-    </form>
   </body>
 </html>
