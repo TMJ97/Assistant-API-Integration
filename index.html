@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenAI Test Form</title>
+    <script>
+      function sendPrompt(event) {
+        event.preventDefault(); // Prevent default form submission behavior
+        const promptInput = document.getElementById("prompt");
+        fetch("http://127.0.0.1:5000/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ prompt: promptInput.value }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.message) {
+              alert("Response: " + data.message);
+            } else {
+              alert("Response error: " + data.error);
+            }
+          })
+          .catch((error) => console.error("Error:", error));
+      }
+    </script>
+  </head>
+  <body>
+    <h1>OpenAI Integration Test</h1>
+    <form onsubmit="sendPrompt(event)">
+      <label for="prompt">Enter your prompt:</label>
+      <input type="text" id="prompt" name="prompt" required />
+      <button type="submit">Send</button>
+    </form>
+  </body>
+</html>

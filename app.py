@@ -1,16 +1,17 @@
-import openai
-import os
-
-from dotenv import load_dotenv
 from flask import Flask, request, jsonify
+from openai import OpenAI
+import os
+from dotenv import load_dotenv
+from flask_cors import CORS
 
 # Load environment variables
 load_dotenv()
 
-# Set up the OpenAI API key
-openai.api_key = os.getenv('OPENAI_API_KEY')
+# Initialize the OpenAI client
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 app = Flask(__name__)
+CORS(app)
 
 @app.route('/')
 def home():
@@ -18,13 +19,20 @@ def home():
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    prompt = request.json['prompt']
-    response = openai.Completion.create(
-        model="gpt-3.5-turbo",
-        prompt=prompt,
-        max_tokens=150
-    )
-    return jsonify(response['choices'][0]['text'])
+    user_prompt = request.json['prompt']
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an assistant."},
+                {"role": "user", "content": user_prompt}
+            ]
+        )
+        # Access the response using attribute notation
+        message_content = response.choices[0].message.content
+        return jsonify({'message': message_content})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
