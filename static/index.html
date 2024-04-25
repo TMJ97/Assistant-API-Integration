@@ -27,20 +27,28 @@
     <button onclick="sendPrompt(event)" style="width: 18%; margin-top: 10px">
       Send
     </button>
+    <div id="loading" style="display: none">Loading...</div>
 
     <script>
       function sendPrompt(event) {
         event.preventDefault();
         const promptInput = document.getElementById("prompt");
+        if (!promptInput.value.trim()) {
+          alert("Please enter some text before sending.");
+          return;
+        }
+        const loadingIndicator = document.getElementById("loading");
+        loadingIndicator.style.display = "block";
         fetch("http://127.0.0.1:5000/generate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ prompt: promptInput.value }),
+          body: JSON.stringify({ prompt: promptInput.value.trim() }),
         })
           .then((response) => response.json())
           .then((data) => {
+            loadingIndicator.style.display = "none";
             if (data.message) {
               const chatHistory = document.getElementById("chatHistory");
               // Append user input and AI response to the chat history
@@ -51,7 +59,11 @@
               alert("Response error: " + data.error);
             }
           })
-          .catch((error) => console.error("Error:", error));
+          .catch((error) => {
+            loadingIndicator.style.display = "none";
+            console.error("Error:", error);
+            alert("An error occurred while sending your message.");
+          });
       }
     </script>
   </body>
