@@ -1,4 +1,4 @@
-from flask import Flask, session, request, jsonify
+from flask import Flask, session, request, jsonify, send_from_directory
 from openai import OpenAI
 import os
 from dotenv import load_dotenv
@@ -18,7 +18,7 @@ client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 @app.route('/')
 def home():
-    return "Welcome to the OpenAI integration demo!"
+    return send_from_directory('static', 'index.html')
 
 @app.route('/generate', methods=['POST'])
 def generate():
