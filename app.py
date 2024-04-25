@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from flask_cors import CORS
 from flask_session import Session
+import logging
 
 app = Flask(__name__)
 CORS(app)
@@ -13,6 +14,9 @@ load_dotenv()
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 assistant_id = os.getenv('ASSISTANT_ID')
@@ -32,6 +36,7 @@ def home():
 @app.route('/generate', methods=['POST'])
 def generate():
     user_prompt = request.json['prompt']
+    logging.info(f"Received user prompt: {user_prompt}")  # Log user input
     session['chat_history'] = session.get('chat_history', []) + [f"User: {user_prompt}"]
     try:
         # Manage thread creation or retrieve from session
@@ -41,7 +46,11 @@ def generate():
             thread = client.beta.threads.create()
             thread_id = thread.id
             session['thread_id'] = thread_id
+            logging.info(f"New thread created with ID: {thread_id}")  # Log new thread creation
 
+        # Log before sending message
+        logging.info(f"Sending message to thread {thread_id} with Assistant ID: {assistant.id}")
+        #logging.info(f"Assistant Configuration: Instructions: {assistant.instructions}, Model: {assistant.model}")
         # Add a message to the thread
         client.beta.threads.messages.create(
           thread_id=thread_id,
@@ -59,19 +68,51 @@ def generate():
                 self.responses.append(delta.value)
         
         event_handler = EventHandler()
+        logging.info(f"Starting run with Assistant ID: {assistant.id} for Thread ID: {thread_id}")
+        #logging.info(f"Assistant Configuration: Instructions: {assistant.instructions}, Model: {assistant.model}")
         with client.beta.threads.runs.stream(
           thread_id=thread_id,
-          assistant_id=assistant.id,
-          instructions="Answer the user query.",
+          assistant_id=assistant.id,  # Double-check this is the intended ID
+          instructions=assistant.instructions,
           event_handler=event_handler,
         ) as stream:
             stream.until_done()
 
         reply = ''.join(event_handler.responses)
         session['chat_history'].append(f"AI: {reply}")
+        logging.info(f"Response from assistant: {reply}")  # Log the response        
+        #logging.info(f"Assistant Configuration: Instructions: {assistant.instructions}, Model: {assistant.model}")
         return jsonify({'message': reply, 'chat_history': session['chat_history']})
     except Exception as e:
+        logging.error(f"Error in generate route: {str(e)}")  # Log errors
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/check-assistant')
+def check_assistant():
+    assistant_id = os.getenv('ASSISTANT_ID')  # Make sure this is the same ID used elsewhere in your app
+    try:
+        assistant = client.beta.assistants.retrieve(assistant_id)
+        assistant_details = {
+            'id': assistant.id,
+            'name': assistant.name,
+            'instructions': assistant.instructions,
+            'model': assistant.model,
+            'tools': serialize_assistant_tool(assistant.tools) if hasattr(assistant, 'tools') else 'No tools configured'
+        }
+        return jsonify(assistant_details)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    
+def serialize_assistant_tool(tool):
+    if isinstance(tool, dict):
+        return {k: serialize_assistant_tool(v) for k, v in tool.items()}
+    elif isinstance(tool, list):
+        return [serialize_assistant_tool(v) for v in tool]
+    elif hasattr(tool, '__dict__'):
+        return {k: serialize_assistant_tool(v) for k, v in tool.__dict__.items()}
+    else:
+        return str(tool)
 
 if __name__ == '__main__':
     app.run(debug=True)
