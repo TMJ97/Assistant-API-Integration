@@ -24,6 +24,7 @@
       style="width: 80%; margin-top: 10px"
       onkeypress="if(event.keyCode==13) {sendPrompt(event);}"
     />
+    <input type="file" id="fileInput" style="width: 80%; margin-top: 10px" />
     <button onclick="sendPrompt(event)" style="width: 18%; margin-top: 10px">
       Send
     </button>
@@ -37,33 +38,63 @@
           alert("Please enter some text before sending.");
           return;
         }
+        const fileInput = document.getElementById("fileInput");
+        const file = fileInput.files[0];
+
+        const formData = new FormData();
+        formData.append("text", promptInput.value.trim());
+        if (file) {
+          formData.append("file", file);
+        }
+
         const loadingIndicator = document.getElementById("loading");
         loadingIndicator.style.display = "block";
+
         fetch("http://127.0.0.1:5000/generate", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ prompt: promptInput.value.trim() }),
+          body: formData, // Use FormData to send text and file
         })
-          .then((response) => response.json())
+          .then((response) => {
+            if (!response.ok) {
+              // If the HTTP status of the response is not 'ok' (200-299), throw an error
+              throw new Error(
+                `Server responded with status ${response.status}`
+              );
+            }
+            return response.json(); // Assuming the response is in JSON format, parse it.
+          })
           .then((data) => {
             loadingIndicator.style.display = "none";
-            if (data.message) {
-              const chatHistory = document.getElementById("chatHistory");
-              // Append user input and AI response to the chat history
-              chatHistory.innerHTML += `<p><strong>User:</strong> ${promptInput.value}</p><p><strong>AI:</strong> ${data.message}</p>`;
-              promptInput.value = ""; // Clear input after sending
-              chatHistory.scrollTop = chatHistory.scrollHeight; // Scroll to the bottom
-            } else {
-              alert("Response error: " + data.error);
+            // Clear input after sending
+            promptInput.value = "";
+            if (fileInput) {
+              fileInput.value = ""; // Clear file input after sending
             }
+            updateChatHistory(data); // Update chat history with received responses
           })
           .catch((error) => {
             loadingIndicator.style.display = "none";
             console.error("Error:", error);
-            alert("An error occurred while sending your message.");
+            alert(
+              `An error occurred while sending your message: ${error.message}`
+            );
           });
+      }
+
+      function updateChatHistory(data) {
+        const chatHistory = document.getElementById("chatHistory");
+        if (data.texts) {
+          data.texts.forEach((text) => {
+            chatHistory.innerHTML += `<p><strong>AI:</strong> ${text}</p>`;
+          });
+        }
+        if (data.images) {
+          data.images.forEach((image) => {
+            // Display images if available
+            chatHistory.innerHTML += `<img src="data:image/png;base64,${image}" style="max-width: 100%;"/>`;
+          });
+        }
+        chatHistory.scrollTop = chatHistory.scrollHeight; // Scroll to the bottom
       }
     </script>
   </body>
